@@ -10,7 +10,7 @@ class SmsaAdapter(ShippingAdapter):
     """محول للتكامل مع شركة SMSA Stax API"""
 
     def __init__(self):
-        self.api_base_url = "https://sam.smsaexpress.com/STAXRestApi/api"
+        self.api_base_url = "https://sam.smsaexpress.com/STAXRestApi/swagger/ui/index#/FulfilmentOrder"
 
     def create_shipment(self, shipment):
         """
