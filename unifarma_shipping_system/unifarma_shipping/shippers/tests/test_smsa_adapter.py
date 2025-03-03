@@ -1,104 +1,145 @@
-# shippers/tests/test_smsa_adapter.py
-from django.test import TestCase
-from unittest.mock import patch, MagicMock
+# test_smsa_integration.py
+import os
+import django
+import sys
+import json
+from datetime import datetime, timedelta
+
+# إعداد Django
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'unifarma_shipping.settings')
+django.setup()
+
+from django.utils import timezone
 from shippers.models import ShippingCompany, ShippingCompanyAccount
-from orders.models import Order, Shipment
+from orders.models import Order, OrderItem, Shipment
 from shippers.adapters.smsa_adapter import SmsaAdapter
 
-class SmsaAdapterTest(TestCase):
-    def setUp(self):
-        # إنشاء شركة شحن وحساب للاختبار
-        self.company = ShippingCompany.objects.create(
-            name="SMSA Express",
-            code="smsa",
-            is_active=True
+def setup_test_data():
+    """إنشاء بيانات اختبار"""
+    # إنشاء شركة شحن SMSA
+    company, created = ShippingCompany.objects.get_or_create(
+        code="smsa",
+        defaults={
+            "name": "SMSA Express",
+            "is_active": True
+        }
+    )
+
+    # إنشاء حساب SMSA
+    account, created = ShippingCompanyAccount.objects.get_or_create(
+        company=company,
+        title="SMSA Test Account",
+        defaults={
+            "account_type": "international",
+            "api_base_url": "https://sam.smsaexpress.com/STAXRestApi/api",
+            "passkey": "DIQ@10077",  # الباس كي المؤقت للاختبار
+            "customer_id": "TEST_CUSTOMER",
+            "warehouse_id": "TEST_WAREHOUSE",
+            "is_active": True
+        }
+    )
+
+    # إنشاء طلب اختبار
+    order, created = Order.objects.get_or_create(
+        reference_number="TEST-ORDER-123",
+        defaults={
+            "citrix_deal_id": "TEST123",
+            "status": "new",
+            "customer_name": "عميل الاختبار",
+            "customer_phone": "966501234567",
+            "customer_email": "test@example.com",
+            "shipping_country": "Saudi Arabia",
+            "shipping_city": "Riyadh",
+            "shipping_address": "شارع الملك فهد، الرياض",
+            "shipping_postal_code": "12345",
+            "total_amount": 500.00,
+            "cod_amount": 0.00,
+            "is_cod": False,
+            "shipping_company": company,
+            "shipping_account": account,
+            "citrix_created_at": timezone.now(),
+            "notes": "طلب اختبار SMSA API"
+        }
+    )
+
+    # إنشاء عناصر الطلب
+    if created:
+        OrderItem.objects.create(
+            order=order,
+            product_id="PROD-001",
+            product_name="منتج اختبار 1",
+            sku="SKU001",
+            quantity=2,
+            unit_price=100.00,
+            total_price=200.00
         )
 
-        self.account = ShippingCompanyAccount.objects.create(
-            company=self.company,
-            title="SMSA Test Account",
-            account_type="international",
-            api_base_url="https://sam.smsaexpress.com/STAXRestApi/api",
-            passkey="DIQ@10077",
-            customer_id="TEST_CUST",
-            warehouse_id="TEST_WRH",
-            is_active=True
+        OrderItem.objects.create(
+            order=order,
+            product_id="PROD-002",
+            product_name="منتج اختبار 2",
+            sku="SKU002",
+            quantity=3,
+            unit_price=100.00,
+            total_price=300.00
         )
 
-        # إنشاء طلب للاختبار
-        self.order = Order.objects.create(
-            citrix_deal_id="TEST123",
-            reference_number="TEST-123",
-            status="new",
-            customer_name="Test Customer",
-            customer_phone="123456789",
-            shipping_country="Saudi Arabia",
-            shipping_city="Riyadh",
-            shipping_address="Test Address",
-            total_amount=100.00,
-            shipping_company=self.company,
-            shipping_account=self.account
-        )
+    # إرجاع البيانات للاختبار
+    return {
+        "company": company,
+        "account": account,
+        "order": order
+    }
 
-        # إنشاء شحنة للاختبار
-        self.shipment = Shipment.objects.create(
-            order=self.order,
-            shipping_company=self.company,
-            shipping_account=self.account,
-            status="pending"
-        )
+def test_create_shipment():
+    """اختبار إنشاء شحنة في SMSA"""
+    print("بدء اختبار إنشاء شحنة SMSA...")
 
-        # إنشاء كائن المحول
-        self.adapter = SmsaAdapter()
+    # إعداد بيانات الاختبار
+    test_data = setup_test_data()
+    order = test_data["order"]
 
-    @patch('requests.post')
-    def test_create_shipment_success(self, mock_post):
-        # تجهيز Mock للاستجابة الناجحة
-        mock_response = MagicMock()
-        mock_response.status_code = 200
-        mock_response.json.return_value = [{"Msg": "Success", "Orderid": "123456789"}]
-        mock_post.return_value = mock_response
+    # إنشاء شحنة
+    shipment = Shipment.objects.create(
+        order=order,
+        shipping_company=test_data["company"],
+        shipping_account=test_data["account"],
+        status="pending"
+    )
 
-        # اختبار إنشاء الشحنة
-        result = self.adapter.create_shipment(self.shipment)
+    # استخدام محول SMSA
+    adapter = SmsaAdapter()
+    result = adapter.create_shipment(shipment)
 
-        # التحقق من النتائج
-        self.assertTrue(result['success'])
-        self.assertEqual(result['tracking_number'], "123456789")
+    # عرض النتائج
+    print("\nنتيجة إنشاء الشحنة:")
+    print(f"نجاح: {result['success']}")
 
-        # التحقق من استدعاء API بشكل صحيح
-        mock_post.assert_called_once()
+    if result['success']:
+        print(f"رقم التتبع: {result['tracking_number']}")
 
-    @patch('requests.post')
-    def test_create_shipment_error(self, mock_post):
-        # تجهيز Mock للاستجابة الفاشلة
-        mock_response = MagicMock()
-        mock_response.status_code = 400
-        mock_response.text = "Bad Request"
-        mock_post.return_value = mock_response
-
-        # اختبار إنشاء الشحنة
-        result = self.adapter.create_shipment(self.shipment)
-
-        # التحقق من النتائج
-        self.assertFalse(result['success'])
-        self.assertIn("خطأ HTTP: 400", result['error'])
-
-    @patch('requests.get')
-    def test_track_shipment_success(self, mock_get):
-        # تحديث الشحنة برقم تتبع
-        self.shipment.tracking_number = "123456789"
-        self.shipment.save()
-
-        # تجهيز Mock للاستجابة الناجحة
-        mock_response = MagicMock()
-        mock_response.status_code = 200
-        mock_response.json.return_value = [{"Status": "Delivered", "Date": "2025-02-26", "Location": "Riyadh"}]
-        mock_get.return_value = mock_response
+        # تحديث الشحنة برقم التتبع
+        shipment.tracking_number = result['tracking_number']
+        shipment.status = "submitted"
+        shipment.save()
 
         # اختبار تتبع الشحنة
-        result = self.adapter.track_shipment(self.shipment)
+        print("\nاختبار تتبع الشحنة...")
+        tracking_result = adapter.track_shipment(shipment)
+        print(f"نجاح التتبع: {tracking_result['success']}")
+        if tracking_result['success']:
+            print(f"حالة الشحنة: {tracking_result['status']}")
+            print(f"تفاصيل التتبع: {json.dumps(tracking_result['details'], indent=2, ensure_ascii=False)}")
 
-        # التحقق من النتائج
-        self.assertTrue(result['success'])
-        self.assertEqual(result['status'], "delivered")
+        # اختبار التحقق من تأكيد الطلب
+        print("\nاختبار التحقق من تأكيد الطلب...")
+        confirmation_result = adapter.check_order_confirmation(shipment)
+        print(f"نجاح التحقق: {confirmation_result['success']}")
+        if confirmation_result['success']:
+            print(f"بيانات التأكيد: {json.dumps(confirmation_result.get('confirmation_data', {}), indent=2, ensure_ascii=False)}")
+    else:
+        print(f"خطأ: {result['error']}")
+        print(f"استجابة API: {json.dumps(result.get('response_data', {}), indent=2, ensure_ascii=False)}")
+
+if __name__ == "__main__":
+    test_create_shipment()

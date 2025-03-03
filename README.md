@@ -1,3 +1,9 @@
+# مخطط التكامل
+    Bitrix24 CRM  <-->  Unifarma Shipping System  <-->  SMSA STAX API
+        |                       |                           |
+        v                       v                           v
+    Webhooks        SQLite Database           Tracking & Status Updates
+
 # نظام تكامل شركات الشحن مع Unifarma
 قمت بتطوير نظام متكامل لإدارة وتوحيد عمليات الشحن لشركة Unifarma باستخدام إطار عمل Django. النظام يربط بين منصة إدارة الصفقات (Citrix24 CRM) وشركات الشحن المختلفة، مع دعم حسابات متعددة لكل شركة شحن (داخلي، دولي، أو لدول محددة).
 
