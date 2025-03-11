@@ -5,17 +5,17 @@ import sys
 import csv
 from collections import defaultdict
 
-# إعداد Django
+# Set up Django
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'unifarma_shipping.settings')
 django.setup()
 
 from shippers.models import ShippingCompany, WarehouseMapping, ProductSKUMapping
 
 def import_warehouses():
-    """استيراد بيانات المستودعات من الملف المرفق"""
-    print("استيراد بيانات المستودعات...")
+    """Import warehouse data from the attached file."""
+    print("Importing warehouse data...")
 
-    # الحصول على أو إنشاء شركة SMSA
+    # Get or create the SMSA shipping company
     smsa, created = ShippingCompany.objects.get_or_create(
         code="smsa",
         defaults={
@@ -24,7 +24,7 @@ def import_warehouses():
         }
     )
 
-    # بيانات المستودعات من الملف المرفق
+    # Warehouse data from the attached file
     warehouses_data = [
         # UAE
         {
@@ -79,7 +79,7 @@ def import_warehouses():
         }
     ]
 
-    # إضافة أو تحديث بيانات المستودعات
+    # Add or update warehouse data
     for warehouse_data in warehouses_data:
         warehouse, created = WarehouseMapping.objects.update_or_create(
             shipping_company=smsa,
@@ -94,17 +94,17 @@ def import_warehouses():
             }
         )
 
-        action = "إنشاء" if created else "تحديث"
-        print(f"{action} مستودع: {warehouse}")
+        action = "Created" if created else "Updated"
+        print(f"{action} warehouse: {warehouse}")
 
-    print(f"تم استيراد {len(warehouses_data)} مستودع بنجاح")
+    print(f"Successfully imported {len(warehouses_data)} warehouses.")
+
 
 def import_skus():
-    """استيراد بيانات SKUs من الملف المرفق"""
-    print("استيراد بيانات SKUs...")
+    """Import SKU data from the attached file."""
+    print("Importing SKU data...")
 
-    # بيانات SKUs من الملف المرفق
-    # قائمة منظمة من البيانات المرفقة
+    # SKU data from the attached file
     skus_data = [
         {
             'product_name': 'MOR BALANCE SOFTGEL CAPSULE GARLIC OIL',
@@ -276,9 +276,9 @@ def import_skus():
         }
     ]
 
-    # إضافة أو تحديث بيانات SKUs
+    # Add or update SKU data
     for sku_data in skus_data:
-        product_id = sku_data['sku_internal']  # نستخدم SKU الداخلي كمعرف للمنتج
+        product_id = sku_data['sku_internal']  # Use the internal SKU as the product ID
 
         sku, created = ProductSKUMapping.objects.update_or_create(
             product_id=product_id,
@@ -292,10 +292,10 @@ def import_skus():
             }
         )
 
-        action = "إنشاء" if created else "تحديث"
+        action = "Created" if created else "Updated"
         print(f"{action} SKU: {sku}")
 
-    print(f"تم استيراد {len(skus_data)} SKU بنجاح")
+    print(f"Successfully imported {len(skus_data)} SKUs.")
 
 if __name__ == "__main__":
     import_warehouses()

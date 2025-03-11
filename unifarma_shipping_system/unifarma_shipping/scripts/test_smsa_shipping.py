@@ -4,7 +4,7 @@ import django
 import sys
 from datetime import datetime, timedelta
 
-# إعداد Django
+# Set up Django
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'unifarma_shipping.settings')
 django.setup()
 
@@ -14,10 +14,10 @@ from orders.models import Order, OrderItem, Shipment
 from shippers.adapters.smsa_adapter import SmsaAdapter
 
 def setup_test_data():
-    """إعداد بيانات الاختبار"""
-    print("إعداد بيانات الاختبار...")
+    """Set up test data."""
+    print("Setting up test data...")
 
-    # إنشاء/الحصول على شركة SMSA
+    # Create/Get the SMSA shipping company
     company, created = ShippingCompany.objects.get_or_create(
         code="smsa",
         defaults={
@@ -25,39 +25,39 @@ def setup_test_data():
             "is_active": True
         }
     )
-    print(f"شركة الشحن: {company.name} {'(تم إنشاؤها)' if created else '(موجودة)'}")
+    print(f"Shipping Company: {company.name} {'(Created)' if created else '(Exists)'}")
 
-    # إنشاء/الحصول على حساب SMSA
+    # Create/Get the SMSA account
     account, created = ShippingCompanyAccount.objects.get_or_create(
         company=company,
         title="SMSA Test Account",
         defaults={
             "account_type": "international",
             "api_base_url": "https://sam.smsaexpress.com/STAXRestApi/api",
-            "passkey": "DIQ@10077",  # الباس كي التجريبي المرفق
-            "customer_id": "UNIFARMA",  # هذا افتراضي، قد تحتاج إلى تغييره
-            "warehouse_id": "SMSA AE",  # نستخدم مستودع الإمارات كافتراضي للبنان
+            "passkey": "DIQ@10077",  # The provided testing passkey
+            "customer_id": "UNIFARMA",  # Default value; might need changing
+            "warehouse_id": "SMSA AE",  # We'll use the UAE warehouse as default for Lebanon
             "is_active": True
         }
     )
-    print(f"حساب الشحن: {account.title} {'(تم إنشاؤه)' if created else '(موجود)'}")
+    print(f"Shipping Account: {account.title} {'(Created)' if created else '(Exists)'}")
 
-    # التأكد من وجود معرف المستودع المناسب
+    # Ensure the appropriate warehouse ID exists
     warehouse, created = WarehouseMapping.objects.get_or_create(
         shipping_company=company,
         country_code="LBN",
         country_name="Lebanon",
         defaults={
-            "warehouse_id": "SMSA AE",  # نستخدم مستودع الإمارات كافتراضي للبنان
+            "warehouse_id": "SMSA AE",  # Using UAE warehouse as default for Lebanon
             "warehouse_name": "SMSA UAE for Lebanon",
             "is_domestic": False,
             "is_cargo": False,
             "is_active": True
         }
     )
-    print(f"معرف المستودع: {warehouse.warehouse_id} {'(تم إنشاؤه)' if created else '(موجود)'}")
+    print(f"Warehouse ID: {warehouse.warehouse_id} {'(Created)' if created else '(Exists)'}")
 
-    # التأكد من وجود SKU للمنتج
+    # Ensure the product SKU exists
     sku_mapping, created = ProductSKUMapping.objects.get_or_create(
         product_id="ROMA-RX",
         defaults={
@@ -69,9 +69,9 @@ def setup_test_data():
             "sku_naqel": "ROMA-RX"
         }
     )
-    print(f"SKU المنتج: {sku_mapping.sku_internal} {'(تم إنشاؤه)' if created else '(موجود)'}")
+    print(f"Product SKU: {sku_mapping.sku_internal} {'(Created)' if created else '(Exists)'}")
 
-    # إنشاء طلب اختبار باستخدام البيانات المقدمة
+    # Create a test order using the provided data
     order, created = Order.objects.get_or_create(
         reference_number="TEST-ORDER-18962",
         defaults={
@@ -82,7 +82,7 @@ def setup_test_data():
             "customer_email": "",
             "shipping_country": "Lebanon",
             "shipping_city": "Aitou",
-            "shipping_address": "أيطو-ساحة أيطو-تمثال العذرا",
+            "shipping_address": "Aitou-Sahat Aitou-Virgin Mary Statue",
             "shipping_postal_code": "",
             "total_amount": 140.00,
             "currency": "USD",
@@ -91,27 +91,27 @@ def setup_test_data():
             "shipping_company": company,
             "shipping_account": account,
             "citrix_created_at": timezone.now(),
-            "notes": "طلب اختبار SMSA API - Lebanon"
+            "notes": "SMSA API Test Order - Lebanon"
         }
     )
-    print(f"الطلب: {order.reference_number} {'(تم إنشاؤه)' if created else '(موجود)'}")
+    print(f"Order: {order.reference_number} {'(Created)' if created else '(Exists)'}")
 
-    # إنشاء عنصر الطلب إذا لم يكن موجودًا
+    # Create an order item if it doesn't exist
     if created:
         item = OrderItem.objects.create(
             order=order,
             product_id="ROMA-RX",
             product_name="LIFE STREAM ROMA-RX LUBRICANT GEL",
-            sku="9771210107001",  # من ملف SKU-SMSA_AND_NAQEL.pdf
+            sku="9771210107001",  # From SKU-SMSA_AND_NAQEL.pdf
             quantity=3,
             unit_price=46.67,  # 140 / 3
             total_price=140.00
         )
-        print(f"تم إنشاء عنصر الطلب: {item.product_name} (الكمية: {item.quantity})")
+        print(f"Created order item: {item.product_name} (Quantity: {item.quantity})")
     else:
-        print("عناصر الطلب موجودة بالفعل")
+        print("Order items already exist.")
 
-    # إنشاء شحنة إذا لم تكن موجودة
+    # Create a shipment if it doesn't exist
     shipment, created = Shipment.objects.get_or_create(
         order=order,
         defaults={
@@ -120,7 +120,7 @@ def setup_test_data():
             "status": "pending"
         }
     )
-    print(f"الشحنة: {shipment.id} {'(تم إنشاؤها)' if created else '(موجودة)'}")
+    print(f"Shipment: {shipment.id} {'(Created)' if created else '(Exists)'}")
 
     return {
         "company": company,
@@ -130,65 +130,65 @@ def setup_test_data():
     }
 
 def test_smsa_shipping():
-    """اختبار إرسال طلب شحن إلى SMSA"""
-    print("\nبدء اختبار إرسال طلب شحن إلى SMSA...\n")
+    """Test sending a shipping request to SMSA."""
+    print("\nStarting SMSA shipping test...\n")
 
-    # إعداد بيانات الاختبار
+    # Set up test data
     test_data = setup_test_data()
 
-    # طباعة معلومات الاختبار
-    print("\nمعلومات الاختبار:")
-    print(f"- معرف الطلب: {test_data['order'].id}")
-    print(f"- معرف الشحنة: {test_data['shipment'].id}")
-    print(f"- اسم العميل: {test_data['order'].customer_name}")
-    print(f"- رقم الهاتف: {test_data['order'].customer_phone}")
-    print(f"- الدولة: {test_data['order'].shipping_country}")
-    print(f"- المدينة: {test_data['order'].shipping_city}")
-    print(f"- العنوان: {test_data['order'].shipping_address}")
-    print(f"- باس كي SMSA: {test_data['account'].passkey}")
-    print(f"- معرف العميل: {test_data['account'].customer_id}")
-    print(f"- معرف المستودع: {test_data['account'].warehouse_id}")
+    # Print test info
+    print("\nTest Information:")
+    print(f"- Order ID: {test_data['order'].id}")
+    print(f"- Shipment ID: {test_data['shipment'].id}")
+    print(f"- Customer Name: {test_data['order'].customer_name}")
+    print(f"- Phone Number: {test_data['order'].customer_phone}")
+    print(f"- Country: {test_data['order'].shipping_country}")
+    print(f"- City: {test_data['order'].shipping_city}")
+    print(f"- Address: {test_data['order'].shipping_address}")
+    print(f"- SMSA Passkey: {test_data['account'].passkey}")
+    print(f"- Customer ID: {test_data['account'].customer_id}")
+    print(f"- Warehouse ID: {test_data['account'].warehouse_id}")
 
-    # سؤال المستخدم للمتابعة
-    print("\nهل ترغب في متابعة إرسال الطلب إلى SMSA؟ (y/n)")
+    # Ask the user whether to proceed
+    print("\nDo you want to proceed with sending the order to SMSA? (y/n)")
     choice = input()
     if choice.lower() != 'y':
-        print("تم إلغاء الاختبار")
+        print("Test canceled.")
         return
 
-    # استخدام محول SMSA لإرسال الطلب
-    print("\nإرسال الطلب إلى SMSA...")
+    # Use the SMSA adapter to send the order
+    print("\nSending the order to SMSA...")
     adapter = SmsaAdapter()
     result = adapter.create_shipment(test_data['shipment'])
 
-    # عرض النتائج
-    print("\nنتيجة إرسال طلب الشحن:")
-    print(f"نجاح: {result.get('success', False)}")
+    # Display results
+    print("\nShipping request result:")
+    print(f"Success: {result.get('success', False)}")
 
     if result.get('success', False):
-        print(f"رقم التتبع: {result.get('tracking_number', 'غير متوفر')}")
+        print(f"Tracking Number: {result.get('tracking_number', 'Unavailable')}")
 
-        # تحديث الشحنة برقم التتبع
+        # Update the shipment with the tracking number
         test_data['shipment'].tracking_number = result.get('tracking_number')
         test_data['shipment'].status = "submitted"
         test_data['shipment'].save()
 
-        print("تم تحديث الشحنة برقم التتبع")
+        print("Shipment updated with tracking number.")
     else:
-        print(f"خطأ: {result.get('error', 'خطأ غير معروف')}")
+        print(f"Error: {result.get('error', 'Unknown Error')}")
         if 'response_data' in result:
-            print(f"تفاصيل الاستجابة: {result['response_data']}")
+            print(f"Response details: {result['response_data']}")
 
-    # سؤال المستخدم لمسح بيانات الاختبار
-    print("\nهل ترغب في مسح بيانات الاختبار؟ (y/n)")
+    # Ask the user whether to clear test data
+    print("\nDo you want to clear the test data? (y/n)")
     choice = input()
     if choice.lower() == 'y':
-        # مسح بيانات الاختبار
+        # Clear test data
         test_data['shipment'].delete()
         test_data['order'].delete()
-        print("تم مسح بيانات الاختبار")
+        print("Test data has been cleared.")
     else:
-        print(f"تم الاحتفاظ ببيانات الاختبار.")
+        print("Test data has been retained.")
 
 if __name__ == "__main__":
     test_smsa_shipping()

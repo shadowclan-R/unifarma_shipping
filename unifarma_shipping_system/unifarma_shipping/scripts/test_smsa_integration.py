@@ -5,7 +5,7 @@ import sys
 import json
 from datetime import datetime, timedelta
 
-# إعداد Django
+# Set up Django
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'unifarma_shipping.settings')
 django.setup()
 
@@ -15,8 +15,8 @@ from orders.models import Order, OrderItem, Shipment
 from shippers.adapters.smsa_adapter import SmsaAdapter
 
 def setup_test_data():
-    """إنشاء بيانات اختبار"""
-    # إنشاء شركة شحن SMSA
+    """Create test data."""
+    # Create the SMSA shipping company
     company, created = ShippingCompany.objects.get_or_create(
         code="smsa",
         defaults={
@@ -25,33 +25,33 @@ def setup_test_data():
         }
     )
 
-    # إنشاء حساب SMSA
+    # Create an SMSA account
     account, created = ShippingCompanyAccount.objects.get_or_create(
         company=company,
         title="SMSA Test Account",
         defaults={
             "account_type": "international",
-            "api_base_url": "https://sam.smsaexpress.com/STAXRestApi/api",
-            "passkey": "DIQ@10077",  # الباس كي المؤقت للاختبار
-            "customer_id": "TEST_CUSTOMER",
-            "warehouse_id": "TEST_WAREHOUSE",
+            "api_base_url": "https://sam.smsaexpress.com/STAXRestApi/api/FulfilmentOrder",
+            "passkey": "DIQ@10077",  # Temporary passkey for testing
+            "customer_id": "10077",
+            "warehouse_id": "1062",
             "is_active": True
         }
     )
 
-    # تحديث قيمة passkey
+    # Update the passkey if the account already existed
     if not created:
         account.passkey = "DIQ@10077"
         account.save(update_fields=['passkey'])
 
-    # إنشاء طلبات اختبار لدول مختلفة
+    # Create test orders for different countries
     test_countries = [
         {"code": "KSA", "name": "Saudi Arabia", "phone": "0501234567"},
         {"code": "UAE", "name": "United Arab Emirates", "phone": "501234567"},
         {"code": "Jordan", "name": "Jordan", "phone": "791234567"},
-        {"code": "Bahrain", "name": "Bahrain", "phone": "31234567"},  # سيتم إضافة 0 قبل الرقم
-        {"code": "Kuwait", "name": "Kuwait", "phone": "51234567"},    # سيتم إضافة 0 قبل الرقم
-        {"code": "Qatar", "name": "Qatar", "phone": "31234567"}       # سيتم إضافة 0 قبل الرقم
+        {"code": "Bahrain", "name": "Bahrain", "phone": "31234567"},  # '0' will be added
+        {"code": "Kuwait", "name": "Kuwait", "phone": "51234567"},    # '0' will be added
+        {"code": "Qatar", "name": "Qatar", "phone": "31234567"}       # '0' will be added
     ]
 
     test_orders = []
@@ -62,12 +62,12 @@ def setup_test_data():
             defaults={
                 "citrix_deal_id": f"TEST{country['code']}",
                 "status": "new",
-                "customer_name": f"عميل اختبار {country['name']}",
+                "customer_name": f"Test Customer {country['name']}",
                 "customer_phone": country['phone'],
                 "customer_email": f"test_{country['code'].lower()}@example.com",
                 "shipping_country": country['name'],
-                "shipping_city": f"العاصمة",
-                "shipping_address": f"عنوان اختبار، {country['name']}",
+                "shipping_city": "Capital",
+                "shipping_address": f"Test Address, {country['name']}",
                 "shipping_postal_code": "12345",
                 "total_amount": 500.00,
                 "cod_amount": 0.00,
@@ -75,15 +75,15 @@ def setup_test_data():
                 "shipping_company": company,
                 "shipping_account": account,
                 "citrix_created_at": timezone.now(),
-                "notes": f"طلب اختبار SMSA API - {country['name']}"
+                "notes": f"SMSA API Test Order - {country['name']}"
             }
         )
 
-        # إنشاء عناصر الطلب
+        # Create order items
         if created:
             OrderItem.objects.create(
                 order=order,
-                product_id="BLNC",  # SKU داخلي للمنتج
+                product_id="BLNC",  # Internal SKU for the product
                 product_name="MOR BALANCE SOFTGEL CAPSULE GARLIC OIL",
                 sku="BLNC",
                 quantity=2,
@@ -93,7 +93,7 @@ def setup_test_data():
 
             OrderItem.objects.create(
                 order=order,
-                product_id="DOOM",  # SKU داخلي للمنتج
+                product_id="DOOM",  # Internal SKU for the product
                 product_name="DOOM FIT",
                 sku="DOOM",
                 quantity=3,
@@ -103,15 +103,15 @@ def setup_test_data():
 
         test_orders.append(order)
 
-    # التأكد من وجود بيانات SKUs
+    # Ensure SKU data exists
     if not ProductSKUMapping.objects.exists():
-        # استدعاء سكربت استيراد البيانات
+        # Call the data import script
         from scripts.import_smsa_data import import_skus
         import_skus()
 
-    # التأكد من وجود بيانات المستودعات
+    # Ensure warehouse data exists
     if not WarehouseMapping.objects.exists():
-        # استدعاء سكربت استيراد البيانات
+        # Call the data import script
         from scripts.import_smsa_data import import_warehouses
         import_warehouses()
 
@@ -122,24 +122,24 @@ def setup_test_data():
     }
 
 def test_phone_formatting():
-    """اختبار تنسيق أرقام الهاتف"""
+    """Test phone number formatting."""
     adapter = SmsaAdapter()
 
     test_cases = [
-        # [الرقم الأصلي, الدولة, النتيجة المتوقعة]
+        # [Original number, Country, Expected result]
         ["+966501234567", "Saudi Arabia", "501234567"],
         ["+97150123456", "United Arab Emirates", "50123456"],
         ["+96279123456", "Jordan", "79123456"],
-        ["+97312345678", "Bahrain", "012345678"],  # إضافة 0 لتصبح 9 أرقام
-        ["+96551234567", "Kuwait", "051234567"],   # إضافة 0 لتصبح 9 أرقام
-        ["+97431234567", "Qatar", "031234567"],    # إضافة 0 لتصبح 9 أرقام
+        ["+97312345678", "Bahrain", "012345678"],   # Add '0' to make 9 digits
+        ["+96551234567", "Kuwait", "051234567"],    # Add '0' to make 9 digits
+        ["+97431234567", "Qatar", "031234567"],     # Add '0' to make 9 digits
         ["00966501234567", "Saudi Arabia", "501234567"],
         ["0501234567", "Saudi Arabia", "501234567"],
         ["501234567", "Saudi Arabia", "501234567"],
-        ["501234567", "Bahrain", "0501234567"],    # إضافة 0 للبحرين
+        ["501234567", "Bahrain", "0501234567"],     # Add '0' for Bahrain
     ]
 
-    print("اختبار تنسيق أرقام الهاتف...")
+    print("Testing phone number formatting...")
 
     for i, test_case in enumerate(test_cases):
         original = test_case[0]
@@ -147,30 +147,30 @@ def test_phone_formatting():
         expected = test_case[2]
 
         result = adapter._format_phone_number(original, country)
-        success = result == expected
+        success = (result == expected)
 
         status = "✓" if success else "✗"
-        print(f"{i+1}. {status} | الأصلي: {original} | الدولة: {country} | النتيجة: {result} | المتوقع: {expected}")
+        print(f"{i+1}. {status} | Original: {original} | Country: {country} | Result: {result} | Expected: {expected}")
 
         if not success:
-            print(f"   خطأ في تنسيق رقم الهاتف! المتوقع: {expected}, الفعلي: {result}")
+            print(f"   Phone number formatting error! Expected: {expected}, Got: {result}")
 
 def test_create_shipment():
-    """اختبار إنشاء شحنة في SMSA"""
-    print("\nبدء اختبار إنشاء شحنة SMSA...")
+    """Test creating a shipment in SMSA."""
+    print("\nStarting SMSA shipment creation test...")
 
-    # إعداد بيانات الاختبار
+    # Set up test data
     test_data = setup_test_data()
 
-    # اختبار تنسيق أرقام الهاتف
+    # Test phone number formatting
     test_phone_formatting()
 
-    # اختبار كل طلب في دول مختلفة
+    # Test each order in different countries
     for order in test_data["orders"]:
-        print(f"\nاختبار إنشاء شحنة للدولة: {order.shipping_country}")
-        print(f"رقم الهاتف الأصلي: {order.customer_phone}")
+        print(f"\nCreating a shipment test for country: {order.shipping_country}")
+        print(f"Original phone number: {order.customer_phone}")
 
-        # إنشاء شحنة
+        # Create a shipment
         shipment = Shipment.objects.create(
             order=order,
             shipping_company=test_data["company"],
@@ -178,39 +178,39 @@ def test_create_shipment():
             status="pending"
         )
 
-        # استخدام محول SMSA
+        # Use the SMSA adapter
         adapter = SmsaAdapter()
 
-        # اختبار تنسيق رقم الهاتف
+        # Test phone number formatting
         formatted_phone = adapter._format_phone_number(order.customer_phone, order.shipping_country)
-        print(f"رقم الهاتف بعد التنسيق: {formatted_phone}")
+        print(f"Formatted phone number: {formatted_phone}")
 
-        # اختبار الحصول على معرف المستودع
+        # Test getting the warehouse ID
         warehouse_id = adapter._get_warehouse_id(test_data["company"].id, order.shipping_country)
-        print(f"معرف المستودع المناسب: {warehouse_id}")
+        print(f"Appropriate Warehouse ID: {warehouse_id}")
 
-        # اختبار الحصول على SKU المنتج
+        # Test retrieving the product SKU
         for item in order.items.all():
             product_sku = adapter._get_product_sku(item.product_id, order.shipping_country)
-            print(f"المنتج: {item.product_name}, SKU الداخلي: {item.product_id}, SKU SMSA: {product_sku}")
+            print(f"Product: {item.product_name}, Internal SKU: {item.product_id}, SMSA SKU: {product_sku}")
 
-        # إنشاء الشحنة (تعليق هذا الجزء حتى لا يتم إرسال طلبات فعلية لـ SMSA)
-        if False:  # تغيير إلى True لاختبار إرسال طلب فعلي
+        # Create the shipment (comment this out so as not to send actual requests to SMSA)
+        if False:  # Change to True to test sending an actual request
             result = adapter.create_shipment(shipment)
 
-            # عرض النتائج
-            print("\nنتيجة إنشاء الشحنة:")
-            print(f"نجاح: {result['success']}")
+            # Display results
+            print("\nShipment Creation Result:")
+            print(f"Success: {result['success']}")
 
             if result['success']:
-                print(f"رقم التتبع: {result['tracking_number']}")
+                print(f"Tracking Number: {result['tracking_number']}")
 
-                # تحديث الشحنة برقم التتبع
+                # Update the shipment with the tracking number
                 shipment.tracking_number = result['tracking_number']
                 shipment.status = "submitted"
                 shipment.save()
             else:
-                print(f"خطأ: {result['error']}")
+                print(f"Error: {result['error']}")
 
 if __name__ == "__main__":
     test_create_shipment()
